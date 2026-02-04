@@ -24,7 +24,7 @@ A magical, interactive particle art experience featuring hand gesture control an
   - Dynamic color palettes per shape
   - Particle glow and additive blending
   - Smooth morphing animations
-- **Ambient Background Music**: Toggle-able festive soundtrack
+- **Ambient Background Music**: Auto-plays on page load for immersive experience
 - **Responsive Design**: Optimized for both desktop and mobile devices
 
 ## 🎮 How to Use
@@ -45,9 +45,10 @@ A magical, interactive particle art experience featuring hand gesture control an
 4. **Alternative Controls**:
    - **Double-click/Double-tap**: Cycle through all shapes
    - **Mouse drag**: Rotate the particle system with inertia
-   - **Music button** (bottom-left): Toggle background music on/off
 
 5. **Camera Preview**: Small preview window (bottom-right) shows your hand tracking
+
+> 💡 **Tip**: Background music will auto-play when you first interact with the page
 
 ## 🛠️ Technology Stack
 

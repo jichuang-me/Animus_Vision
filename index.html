@@ -215,38 +215,6 @@
             z-index: 100;
             border: 1px solid rgba(0, 242, 255, 0.2);
         }
-
-        #music-toggle {
-            position: fixed;
-            bottom: 20px;
-            left: 20px;
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, rgba(0, 242, 255, 0.2), rgba(112, 0, 255, 0.2));
-            backdrop-filter: blur(20px);
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.5rem;
-            color: #fff;
-            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            z-index: 100;
-            pointer-events: auto;
-            box-shadow: 0 5px 20px rgba(0, 242, 255, 0.3);
-        }
-
-        #music-toggle:hover {
-            transform: scale(1.1);
-            background: linear-gradient(135deg, rgba(0, 242, 255, 0.4), rgba(112, 0, 255, 0.4));
-            box-shadow: 0 8px 30px rgba(112, 0, 255, 0.5);
-        }
-
-        #music-toggle.muted {
-            opacity: 0.5;
-        }
     </style>
 
     <script type="importmap">
@@ -268,12 +236,11 @@
     <div id="gesture-status">CONNECTING...</div>
     <div id="toast">MERRY CHRISTMAS & HAPPY NEW YEAR</div>
 
-    <!-- Background Music -->
-    <audio id="bg-music" loop preload="auto" crossorigin="anonymous">
+    <!-- Background Music - Auto-play -->
+    <audio id="bg-music" loop preload="auto" crossorigin="anonymous" autoplay>
         <source src="https://cdn.pixabay.com/audio/2022/11/28/audio_3c0f6b5ecc.mp3" type="audio/mpeg">
         <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" type="audio/mpeg">
     </audio>
-    <button id="music-toggle" title="Toggle Music" class="muted">🔇</button>
 
     <div class="ui-overlay">
         <div class="header">
@@ -658,72 +625,32 @@
 
             document.getElementById('cam-btn').addEventListener('click', startCamera);
 
-            // Music control with improved error handling
+            // Auto-play background music on first user interaction
             const music = document.getElementById('bg-music');
-            const musicToggle = document.getElementById('music-toggle');
-            let isMusicPlaying = false;
-            let musicReady = false;
+            music.volume = 0.35; // Set comfortable volume level
 
-            // Check if audio is loaded
-            music.addEventListener('canplaythrough', () => {
-                musicReady = true;
-                console.log('✅ Background music loaded successfully');
-            });
-
-            music.addEventListener('error', (e) => {
-                console.error('❌ Audio loading error:', e);
-                showHelpfulToast('Music unavailable - check connection');
-                musicToggle.style.opacity = '0.3';
-            });
-
-            // Volume control
-            music.volume = 0.4; // Set to 40% to avoid being too loud
-
-            musicToggle.addEventListener('click', async () => {
+            const startMusic = async () => {
                 try {
-                    if (isMusicPlaying) {
-                        music.pause();
-                        musicToggle.innerText = '🔇';
-                        musicToggle.classList.add('muted');
-                        isMusicPlaying = false;
-                        console.log('🔇 Music paused');
-                    } else {
-                        await music.play();
-                        musicToggle.innerText = '🔊';
-                        musicToggle.classList.remove('muted');
-                        isMusicPlaying = true;
-                        console.log('🔊 Music playing');
-                        showHelpfulToast('Music started 🎵');
-                    }
+                    await music.play();
+                    console.log('🎵 Background music started');
                 } catch (err) {
-                    console.error('Audio play failed:', err);
-                    showHelpfulToast('Click anywhere to enable music');
+                    console.log('Music autoplay blocked:', err.message);
+                    // Try again on next interaction
+                    setTimeout(() => {
+                        document.addEventListener('click', startMusic, { once: true });
+                    }, 100);
                 }
-            });
-
-            // Auto-play music on first user interaction
-            const autoPlayMusic = async () => {
-                if (!isMusicPlaying && musicReady) {
-                    try {
-                        await music.play();
-                        isMusicPlaying = true;
-                        musicToggle.innerText = '🔊';
-                        musicToggle.classList.remove('muted');
-                        console.log('🎵 Auto-play music started');
-                        showHelpfulToast('Background music enabled 🎵');
-                    } catch (err) {
-                        console.log('Auto-play blocked, user must click music button');
-                    }
-                }
-                document.removeEventListener('click', autoPlayMusic);
-                document.removeEventListener('touchstart', autoPlayMusic);
             };
 
-            // Try auto-play after a short delay
-            setTimeout(() => {
-                document.addEventListener('click', autoPlayMusic, { once: true });
-                document.addEventListener('touchstart', autoPlayMusic, { once: true });
-            }, 500);
+            // Try to start music immediately (may be blocked by browser)
+            music.addEventListener('canplaythrough', () => {
+                console.log('✅ Music loaded and ready');
+                startMusic();
+            }, { once: true });
+
+            // Fallback: start on first user interaction
+            document.addEventListener('click', startMusic, { once: true });
+            document.addEventListener('touchstart', startMusic, { once: true });
         }
 
         function onHandResults(results) {
