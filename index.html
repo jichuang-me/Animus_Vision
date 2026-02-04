@@ -32,7 +32,7 @@
         }
 
         body {
-            background-color: var(--bg-color);
+            background: radial-gradient(circle at center, #1a1a2e 0%, #050505 100%);
             color: var(--text-color);
             font-family: 'Outfit', sans-serif;
             overflow: hidden;
@@ -234,18 +234,18 @@
 
     <video id="video-input" autoplay playsinline></video>
     <div id="gesture-status">CONNECTING...</div>
-    <div id="toast">NEURAL LINK ESTABLISHED</div>
+    <div id="toast">MERRY CHRISTMAS & HAPPY NEW YEAR</div>
 
     <div class="ui-overlay">
         <div class="header">
-            <h1>Animus Vision</h1>
-            <p>Spectral Neural Art v2.0</p>
+            <h1>Magic Xmas Tree</h1>
+            <p>Neural Particle Vision v3.0</p>
         </div>
 
         <div class="hint-container">
-            <button id="cam-btn">INITIATE NEURAL LINK</button>
+            <button id="cam-btn">START MAGICAL JOURNEY</button>
             <div class="hint">
-                Show 1-5 fingers to invoke Spirits • Double Tap to cycle manually
+                Hold 1 finger for Xmas Tree • 2 for Lotus • 3 for Butterfly • 4 for Deer • 5 for Peacock • 0 for Star
             </div>
         </div>
     </div>
@@ -260,8 +260,9 @@
             count: 45000,
             size: 0.045,
             friction: 0.94,
-            autoRotate: 0.0015,
-            chaosRadius: 18
+            autoRotate: 0.002,
+            chaosRadius: 18,
+            globalScale: 1.0
         };
 
         const PALETTES = {
@@ -271,10 +272,11 @@
             phoenix: [[0.05, 1, 0.5], [0.08, 1, 0.6], [0.12, 1, 0.5], [0, 1, 0.6]],
             deer: [[0.1, 0.7, 0.5], [0.15, 0.5, 0.3], [0.08, 0.9, 0.7]],
             peacock: [[0.55, 1, 0.5], [0.6, 1, 0.6], [0.45, 1, 0.5], [0.8, 1, 0.6]],
-            star: [[0.1, 1, 0.7], [0.6, 1, 0.7], [0.8, 1, 0.8]]
+            star: [[0.1, 1, 0.7], [0.6, 1, 0.7], [0.8, 1, 0.8]],
+            xmas: [[0.12, 0.8, 0.6], [0.1, 0.9, 0.5], [0.08, 1, 0.7], [0.02, 0.9, 0.6], [0.6, 0.1, 0.9]]
         };
 
-        const SHAPE_KEYS = ['void', 'lotus', 'butterfly', 'phoenix', 'deer', 'peacock', 'star'];
+        const SHAPE_KEYS = ['xmas', 'lotus', 'butterfly', 'phoenix', 'deer', 'peacock', 'star', 'void'];
         let currentShapeIdx = 0;
         let nextShapeIdx = 1;
 
@@ -321,6 +323,8 @@
                 this.pos.add(this.vel);
                 this.acc.set(0, 0, 0);
 
+                // Add magical scaling
+                const s = CONFIG.globalScale;
                 this.currentColor.lerp(this.baseColor, 0.08);
             }
 
@@ -347,9 +351,9 @@
             // Post Processing
             const renderScene = new RenderPass(scene, camera);
             const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
-            bloomPass.threshold = 0.2;
-            bloomPass.strength = 1.2;
-            bloomPass.radius = 0.5;
+            bloomPass.threshold = 0.05;
+            bloomPass.strength = 1.8;
+            bloomPass.radius = 1.2;
 
             composer = new EffectComposer(renderer);
             composer.addPass(renderScene);
@@ -376,9 +380,45 @@
                 shapes.lotus.push(genLotus(i));
                 shapes.butterfly.push(genButterfly(i));
                 shapes.phoenix.push(genPhoenix(i));
-                shapes.deer.push(genDeer(i));
                 shapes.peacock.push(genPeacock(i));
+                shapes.xmas.push(genTree(i));
             }
+        }
+
+        function genTree(i) {
+            const r = Math.random();
+            // Star on top (Pointy part)
+            if (r < 0.05) {
+                const angle = Math.random() * Math.PI * 2;
+                const rad = Math.pow(Math.random(), 2) * 2.5;
+                return new THREE.Vector3(
+                    Math.cos(angle) * rad,
+                    12 + (Math.random() - 0.5) * 2,
+                    Math.sin(angle) * rad
+                );
+            }
+            // Tree Body (Cone with some spirals)
+            if (r < 0.85) {
+                const h = Math.pow(Math.random(), 1.2) * 20; // 0 to 20
+                const ripple = Math.sin(h * 0.5) * 0.5;
+                const radius = (1 - h / 22) * 9 + ripple;
+                const angle = h * 1.5 + (Math.random() * 0.5);
+                const spread = (Math.random() - 0.5) * 1.5;
+                return new THREE.Vector3(
+                    Math.cos(angle) * (radius + spread),
+                    h - 8,
+                    Math.sin(angle) * (radius + spread)
+                );
+            }
+            // Trunk
+            const th = Math.random() * 4;
+            const tr = Math.random() * 1.5;
+            const ta = Math.random() * Math.PI * 2;
+            return new THREE.Vector3(
+                Math.cos(ta) * tr,
+                -8 - th,
+                Math.sin(ta) * tr
+            );
         }
 
         function genEllipsoid(w, h, d, ox = 0, oy = 0, oz = 0) {
@@ -486,11 +526,14 @@
         }
 
         function createParticleTexture() {
-            const c = document.createElement('canvas'); c.width = 64; c.height = 64;
+            const c = document.createElement('canvas'); c.width = 128; c.height = 128;
             const ctx = c.getContext('2d');
-            const g = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
-            g.addColorStop(0, '#ffffff'); g.addColorStop(0.3, 'rgba(255,255,255,0.4)'); g.addColorStop(1, 'transparent');
-            ctx.fillStyle = g; ctx.fillRect(0, 0, 64, 64);
+            const g = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+            g.addColorStop(0, 'rgba(255, 255, 255, 1)');
+            g.addColorStop(0.2, 'rgba(255, 255, 255, 0.8)');
+            g.addColorStop(0.5, 'rgba(255, 255, 255, 0.3)');
+            g.addColorStop(1, 'transparent');
+            ctx.fillStyle = g; ctx.fillRect(0, 0, 128, 128);
             return new THREE.CanvasTexture(c);
         }
 
@@ -501,9 +544,13 @@
 
             const name = SHAPE_KEYS[currentShapeIdx];
             const status = document.getElementById('gesture-status');
-            status.innerText = name === 'void' ? 'VOID UNLEASHED' : `SPIRIT: ${name.toUpperCase()}`;
+            status.innerText = name === 'xmas' ? 'MERRY CHRISTMAS' : `SPIRIT: ${name.toUpperCase()}`;
             status.style.opacity = '1';
             status.style.transform = 'translateX(-50%) scale(1.1)';
+
+            if (name === 'xmas') {
+                showHelpfulToast("Wishing you a Magical Christmas!");
+            }
             setTimeout(() => {
                 status.style.opacity = '0';
                 status.style.transform = 'translateX(-50%) scale(1)';
@@ -559,6 +606,13 @@
                 const thumbUp = Math.abs(landmarks[4].x - landmarks[17].x) > Math.abs(landmarks[3].x - landmarks[17].x) ? 1 : 0;
                 const total = fingersUp + thumbUp;
 
+                // Scaling interaction: distance between thumb and index
+                const dx = landmarks[4].x - landmarks[8].x;
+                const dy = landmarks[4].y - landmarks[8].y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                const targetScale = 0.7 + dist * 3;
+                CONFIG.globalScale += (targetScale - CONFIG.globalScale) * 0.1;
+
                 if (total === lastDetectedGesture) {
                     gestureConfidence++;
                 } else {
@@ -568,10 +622,7 @@
 
                 // Only morph if gesture is sustained (reduces flickering)
                 if (gestureConfidence > 10) {
-                    const map = { 0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 0: 6 }; // 0 can mean void (0) or star (6)
-                    // Let's refine the map:
-                    // 1: Lotus, 2: Butterfly, 3: Phoenix, 4: Deer, 5: Peacock, 0: Star
-                    const realMap = [6, 1, 2, 3, 4, 5];
+                    const realMap = [6, 0, 1, 2, 4, 5]; // 0: xmas, 1: lotus, 2: butterfly, 3: phoenix, 4: deer, 5: peacock, 6: star
                     morphTo(realMap[total] || 0);
                     gestureConfidence = 0;
                 }
@@ -633,9 +684,12 @@
 
             particles.forEach((p, i) => {
                 p.update();
-                posArray[i * 3] = p.pos.x;
-                posArray[i * 3 + 1] = p.pos.y;
-                posArray[i * 3 + 2] = p.pos.z;
+                const s = CONFIG.globalScale;
+                const pulse = 1 + Math.sin(Date.now() * 0.002 + p.idx * 0.01) * 0.1;
+                posArray[i * 3] = p.pos.x * s * pulse;
+                posArray[i * 3 + 1] = p.pos.y * s * pulse;
+                posArray[i * 3 + 2] = p.pos.z * s * pulse;
+
                 colors[i * 3] = p.currentColor.r;
                 colors[i * 3 + 1] = p.currentColor.g;
                 colors[i * 3 + 2] = p.currentColor.b;
