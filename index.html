@@ -269,10 +269,11 @@
     <div id="toast">MERRY CHRISTMAS & HAPPY NEW YEAR</div>
 
     <!-- Background Music -->
-    <audio id="bg-music" loop>
+    <audio id="bg-music" loop preload="auto" crossorigin="anonymous">
         <source src="https://cdn.pixabay.com/audio/2022/11/28/audio_3c0f6b5ecc.mp3" type="audio/mpeg">
+        <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" type="audio/mpeg">
     </audio>
-    <button id="music-toggle" title="Toggle Music">🔊</button>
+    <button id="music-toggle" title="Toggle Music" class="muted">🔇</button>
 
     <div class="ui-overlay">
         <div class="header">
@@ -657,38 +658,72 @@
 
             document.getElementById('cam-btn').addEventListener('click', startCamera);
 
-            // Music control
+            // Music control with improved error handling
             const music = document.getElementById('bg-music');
             const musicToggle = document.getElementById('music-toggle');
             let isMusicPlaying = false;
+            let musicReady = false;
 
-            musicToggle.addEventListener('click', () => {
-                if (isMusicPlaying) {
-                    music.pause();
-                    musicToggle.innerText = '🔇';
-                    musicToggle.classList.add('muted');
-                } else {
-                    music.play().catch(err => console.log('Audio play failed:', err));
-                    musicToggle.innerText = '🔊';
-                    musicToggle.classList.remove('muted');
+            // Check if audio is loaded
+            music.addEventListener('canplaythrough', () => {
+                musicReady = true;
+                console.log('✅ Background music loaded successfully');
+            });
+
+            music.addEventListener('error', (e) => {
+                console.error('❌ Audio loading error:', e);
+                showHelpfulToast('Music unavailable - check connection');
+                musicToggle.style.opacity = '0.3';
+            });
+
+            // Volume control
+            music.volume = 0.4; // Set to 40% to avoid being too loud
+
+            musicToggle.addEventListener('click', async () => {
+                try {
+                    if (isMusicPlaying) {
+                        music.pause();
+                        musicToggle.innerText = '🔇';
+                        musicToggle.classList.add('muted');
+                        isMusicPlaying = false;
+                        console.log('🔇 Music paused');
+                    } else {
+                        await music.play();
+                        musicToggle.innerText = '🔊';
+                        musicToggle.classList.remove('muted');
+                        isMusicPlaying = true;
+                        console.log('🔊 Music playing');
+                        showHelpfulToast('Music started 🎵');
+                    }
+                } catch (err) {
+                    console.error('Audio play failed:', err);
+                    showHelpfulToast('Click anywhere to enable music');
                 }
-                isMusicPlaying = !isMusicPlaying;
             });
 
             // Auto-play music on first user interaction
-            const autoPlayMusic = () => {
-                if (!isMusicPlaying) {
-                    music.play().then(() => {
+            const autoPlayMusic = async () => {
+                if (!isMusicPlaying && musicReady) {
+                    try {
+                        await music.play();
                         isMusicPlaying = true;
                         musicToggle.innerText = '🔊';
                         musicToggle.classList.remove('muted');
-                    }).catch(() => { });
+                        console.log('🎵 Auto-play music started');
+                        showHelpfulToast('Background music enabled 🎵');
+                    } catch (err) {
+                        console.log('Auto-play blocked, user must click music button');
+                    }
                 }
                 document.removeEventListener('click', autoPlayMusic);
                 document.removeEventListener('touchstart', autoPlayMusic);
             };
-            document.addEventListener('click', autoPlayMusic);
-            document.addEventListener('touchstart', autoPlayMusic);
+
+            // Try auto-play after a short delay
+            setTimeout(() => {
+                document.addEventListener('click', autoPlayMusic, { once: true });
+                document.addEventListener('touchstart', autoPlayMusic, { once: true });
+            }, 500);
         }
 
         function onHandResults(results) {
