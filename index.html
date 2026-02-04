@@ -215,6 +215,38 @@
             z-index: 100;
             border: 1px solid rgba(0, 242, 255, 0.2);
         }
+
+        #music-toggle {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, rgba(0, 242, 255, 0.2), rgba(112, 0, 255, 0.2));
+            backdrop-filter: blur(20px);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            color: #fff;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 100;
+            pointer-events: auto;
+            box-shadow: 0 5px 20px rgba(0, 242, 255, 0.3);
+        }
+
+        #music-toggle:hover {
+            transform: scale(1.1);
+            background: linear-gradient(135deg, rgba(0, 242, 255, 0.4), rgba(112, 0, 255, 0.4));
+            box-shadow: 0 8px 30px rgba(112, 0, 255, 0.5);
+        }
+
+        #music-toggle.muted {
+            opacity: 0.5;
+        }
     </style>
 
     <script type="importmap">
@@ -235,6 +267,12 @@
     <video id="video-input" autoplay playsinline></video>
     <div id="gesture-status">CONNECTING...</div>
     <div id="toast">MERRY CHRISTMAS & HAPPY NEW YEAR</div>
+
+    <!-- Background Music -->
+    <audio id="bg-music" loop>
+        <source src="https://cdn.pixabay.com/audio/2022/11/28/audio_3c0f6b5ecc.mp3" type="audio/mpeg">
+    </audio>
+    <button id="music-toggle" title="Toggle Music">🔊</button>
 
     <div class="ui-overlay">
         <div class="header">
@@ -618,6 +656,39 @@
             });
 
             document.getElementById('cam-btn').addEventListener('click', startCamera);
+
+            // Music control
+            const music = document.getElementById('bg-music');
+            const musicToggle = document.getElementById('music-toggle');
+            let isMusicPlaying = false;
+
+            musicToggle.addEventListener('click', () => {
+                if (isMusicPlaying) {
+                    music.pause();
+                    musicToggle.innerText = '🔇';
+                    musicToggle.classList.add('muted');
+                } else {
+                    music.play().catch(err => console.log('Audio play failed:', err));
+                    musicToggle.innerText = '🔊';
+                    musicToggle.classList.remove('muted');
+                }
+                isMusicPlaying = !isMusicPlaying;
+            });
+
+            // Auto-play music on first user interaction
+            const autoPlayMusic = () => {
+                if (!isMusicPlaying) {
+                    music.play().then(() => {
+                        isMusicPlaying = true;
+                        musicToggle.innerText = '🔊';
+                        musicToggle.classList.remove('muted');
+                    }).catch(() => { });
+                }
+                document.removeEventListener('click', autoPlayMusic);
+                document.removeEventListener('touchstart', autoPlayMusic);
+            };
+            document.addEventListener('click', autoPlayMusic);
+            document.addEventListener('touchstart', autoPlayMusic);
         }
 
         function onHandResults(results) {
