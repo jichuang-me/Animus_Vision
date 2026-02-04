@@ -258,7 +258,7 @@
 
         const CONFIG = {
             count: 45000,
-            size: 0.045,
+            size: 0.15,
             friction: 0.94,
             autoRotate: 0.002,
             chaosRadius: 18,
@@ -287,6 +287,11 @@
         let clock = new THREE.Clock();
         let lastDetectedGesture = -1;
         let gestureConfidence = 0;
+
+        // Mouse Drag Controls
+        let isDragging = false;
+        let previousMousePosition = { x: 0, y: 0 };
+        let rotationVelocity = { x: 0, y: 0 };
 
         class Particle {
             constructor(index) {
@@ -351,9 +356,9 @@
             // Post Processing
             const renderScene = new RenderPass(scene, camera);
             const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
-            bloomPass.threshold = 0.05;
-            bloomPass.strength = 1.8;
-            bloomPass.radius = 1.2;
+            bloomPass.threshold = 0;
+            bloomPass.strength = 2.8;
+            bloomPass.radius = 1.0;
 
             composer = new EffectComposer(renderer);
             composer.addPass(renderScene);
@@ -583,9 +588,33 @@
                 mouse.y = -(t.clientY / window.innerHeight - 0.5) * 25;
             });
 
+            window.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                previousMousePosition = { x: e.clientX, y: e.clientY };
+            });
+
+            window.addEventListener('mouseup', () => isDragging = false);
+
             window.addEventListener('mousemove', (e) => {
                 mouse.x = (e.clientX / window.innerWidth - 0.5) * 35;
                 mouse.y = -(e.clientY / window.innerHeight - 0.5) * 25;
+
+                if (isDragging) {
+                    const deltaMove = {
+                        x: e.clientX - previousMousePosition.x,
+                        y: e.clientY - previousMousePosition.y
+                    };
+
+                    // Rotate system based on drag
+                    system.rotation.y += deltaMove.x * 0.005;
+                    system.rotation.x += deltaMove.y * 0.005;
+
+                    // Add some velocity for inertia
+                    rotationVelocity.x = deltaMove.y * 0.0005;
+                    rotationVelocity.y = deltaMove.x * 0.0005;
+
+                    previousMousePosition = { x: e.clientX, y: e.clientY };
+                }
             });
 
             document.getElementById('cam-btn').addEventListener('click', startCamera);
@@ -696,8 +725,18 @@
             });
 
             system.geometry.attributes.position.needsUpdate = true;
+            system.geometry.attributes.position.needsUpdate = true;
             system.geometry.attributes.color.needsUpdate = true;
-            system.rotation.y += CONFIG.autoRotate;
+
+            // Auto rotate if not dragging, else apply inertia
+            if (!isDragging) {
+                system.rotation.y += CONFIG.autoRotate;
+                system.rotation.x += rotationVelocity.x;
+                system.rotation.y += rotationVelocity.y;
+                // Dampen inertia
+                rotationVelocity.x *= 0.95;
+                rotationVelocity.y *= 0.95;
+            }
 
             composer.render();
         }
