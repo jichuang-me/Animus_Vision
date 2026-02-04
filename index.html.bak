@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Animus Vision | Neural Gesture Sensory Art</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&family=Playfair+Display:ital,wght@0,700;1,700&display=swap"
+        rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/23.1.1/tween.umd.js"></script>
+    <style>
+        :root {
+            --bg-color: #000000;
+            --accent-gold: #ffea00;
+            --accent-white: #ffffff;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--accent-white);
+            font-family: 'Outfit', sans-serif;
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+            touch-action: none;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Video element for hand tracking */
+        #video-input {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 160px;
+            height: 120px;
+            border-radius: 12px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            transform: scaleX(-1);
+            z-index: 100;
+            background: #111;
+        }
+
+        .ui-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 2.5rem;
+            z-index: 10;
+        }
+
+        .header {
+            opacity: 0.9;
+            transition: opacity 0.5s;
+        }
+
+        .header h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: 2.4rem;
+            font-weight: 700;
+            background: linear-gradient(to right, #ffffff, #ffd700, #ff00ff, #00ffff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 30px rgba(255, 255, 255, 0.2);
+        }
+
+        .header p {
+            font-weight: 400;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5em;
+            background: linear-gradient(to right, #00ff88, #00ffff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-top: 0.5rem;
+        }
+
+        .hint-container {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .hint {
+            font-size: 0.8rem;
+            opacity: 0.7;
+            letter-spacing: 0.1em;
+            text-align: center;
+            color: #fff;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 0.6rem 1.8rem;
+            border-radius: 40px;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+
+        #cam-btn {
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.3), rgba(255, 0, 255, 0.3));
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            padding: 1.2rem 2.5rem;
+            border-radius: 50px;
+            pointer-events: auto;
+            color: #ffffff;
+            font-weight: 600;
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        #cam-btn:hover {
+            transform: scale(1.05);
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.5), rgba(255, 0, 255, 0.5));
+            box-shadow: 0 15px 40px rgba(255, 0, 255, 0.2);
+        }
+
+        #gesture-status {
+            position: fixed;
+            top: 20%;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 1.8rem;
+            color: #ffffff;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.3em;
+            opacity: 0;
+            transition: opacity 0.3s, transform 0.5s;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.8);
+        }
+
+        #loader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 200;
+            transition: opacity 1s;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid #111;
+            border-top-color: #ffd700;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        #scrub-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #ffd700, #ff00ff, #00ffff);
+            width: 0%;
+            transition: width 0.1s;
+            z-index: 1000;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+        }
+    </style>
+    <!-- MediaPipe Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+</head>
+
+<body>
+    <div id="loader">
+        <div class="spinner"></div>
+    </div>
+
+    <video id="video-input" autoplay playsinline></video>
+    <div id="gesture-status">CHAOS VOID</div>
+
+    <div id="scrub-bar"></div>
+
+    <div class="ui-overlay">
+        <div class="header" id="main-header">
+            <h1>Animus Vision</h1>
+            <p>Neural Fluid Sensory Art</p>
+        </div>
+
+        <div class="hint-container">
+            <button id="cam-btn" onclick="startCamera()">INITIATE NEURAL VISION</button>
+            <div class="hint">
+                DRAG HORIZONTALLY to Morph • 1-5 Camera Gestures
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const CONFIG = {
+            count: 35000,
+            size: 0.05,
+            friction: 0.92,
+            autoRotate: 0.002,
+            chaosRadius: 15
+        };
+
+        const PALETTES = {
+            chaos: [[0, 0, 0.5], [0.6, 1, 0.5], [0.8, 1, 0.5]],
+            tree: [[0.33, 0.8, 0.4], [0.12, 1, 0.5], [0, 1, 0.5], [0.6, 1, 0.5]],
+            star: [[0.1, 1, 0.6], [0.6, 1, 0.6], [0.85, 1, 0.6], [0, 0, 1]],
+            rabbit: [[0.8, 0.2, 0.9], [0, 1, 0.8], [0.1, 0.1, 0.95]],
+            bird: [[0.05, 1, 0.5], [0.1, 1, 0.5], [0.15, 1, 0.5]],
+            cat: [[0.08, 0.8, 0.5], [0.1, 0.1, 0.1], [0.6, 0.2, 0.6]],
+            dog: [[0.12, 0.7, 0.5], [0.15, 0.5, 0.3], [0.1, 0.9, 0.8]]
+        };
+
+        const SHAPE_KEYS = ['chaos', 'tree', 'rabbit', 'bird', 'cat', 'dog', 'star'];
+        let currentShapeIdx = 0;
+        let nextShapeIdx = 1;
+        let morphProgress = 0; // 0 to 1
+        let isScrubbing = false;
+
+        let scene, camera, renderer, system;
+        let shapes = {};
+        let particles = [];
+        let mouse = new THREE.Vector3(0, 0, -100);
+        let clock = new THREE.Clock();
+        let lastDetectedGesture = -1;
+
+        class Particle {
+            constructor(index) {
+                this.idx = index;
+                this.pos = new THREE.Vector3().setFromSphericalCoords(CONFIG.chaosRadius, Math.random() * Math.PI, Math.random() * Math.PI * 2);
+                this.vel = new THREE.Vector3();
+                this.acc = new THREE.Vector3();
+                this.target = new THREE.Vector3().copy(this.pos);
+                this.targetA = new THREE.Vector3().copy(this.pos);
+                this.targetB = new THREE.Vector3().copy(this.pos);
+                this.baseColor = new THREE.Color();
+                this.currentColor = new THREE.Color();
+                this.type = Math.random();
+            }
+
+            update() {
+                // Interpolate target based on morphProgress
+                this.target.lerpVectors(this.targetA, this.targetB, morphProgress);
+
+                const force = this.target.clone().sub(this.pos);
+                const d = force.length();
+                force.normalize().multiplyScalar(d * (SHAPE_KEYS[currentShapeIdx] === 'chaos' && morphProgress < 0.1 ? 0.005 : 0.04));
+                this.acc.add(force);
+
+                const time = clock.getElapsedTime();
+                this.acc.x += Math.sin(time * 0.5 + this.idx * 0.1) * 0.005;
+                this.acc.y += Math.cos(time * 0.3 + this.idx * 0.1) * 0.005;
+
+                const dMouse = this.pos.distanceTo(mouse);
+                if (dMouse < 4) {
+                    const rep = this.pos.clone().sub(mouse).normalize().multiplyScalar((1 - dMouse / 4) * 1.2);
+                    this.acc.add(rep);
+                }
+
+                this.vel.add(this.acc);
+                this.vel.multiplyScalar(CONFIG.friction);
+                this.pos.add(this.vel);
+                this.acc.set(0, 0, 0);
+
+                // Tint based on target shape
+                this.currentColor.lerp(this.baseColor, 0.05);
+            }
+
+            setTarget(shapeA_Idx, shapeB_Idx) {
+                const keyA = SHAPE_KEYS[shapeA_Idx];
+                const keyB = SHAPE_KEYS[shapeB_Idx];
+                this.targetA.copy(shapes[keyA][this.idx]);
+                this.targetB.copy(shapes[keyB][this.idx]);
+
+                // Color lerp
+                const palette = PALETTES[keyB];
+                const [h, s, l] = palette[Math.floor(this.type * palette.length)];
+                this.baseColor.setHSL(h, s, l);
+            }
+        }
+
+        function init() {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 15;
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            generateShapes();
+            createSystem();
+            setupInteractions();
+
+            window.addEventListener('resize', onResize);
+            animate();
+
+            setTimeout(() => { document.getElementById('loader').style.opacity = '0'; }, 800);
+        }
+
+        function generateShapes() {
+            SHAPE_KEYS.forEach(k => shapes[k] = []);
+
+            for (let i = 0; i < CONFIG.count; i++) {
+                // CHAOS
+                shapes.chaos.push(new THREE.Vector3().setFromSphericalCoords(CONFIG.chaosRadius * (0.8 + Math.random() * 0.4), Math.random() * Math.PI, Math.random() * Math.PI * 2));
+
+                // TREE
+                const h = Math.pow(Math.random(), 1.5) * 10;
+                const r = (1 - h / 10) * 4 + (Math.random() - 0.5) * 0.5;
+                const a = Math.random() * 6.28;
+                shapes.tree.push(new THREE.Vector3(Math.cos(a) * r, h - 5, Math.sin(a) * r));
+
+                // STAR
+                const sa = Math.random() * 6.28;
+                const sd = Math.pow(Math.random(), 1.5);
+                const sr = 6 * (0.1 + sd * 0.9) * (Math.sin(sa * 2.5) * 0.4 + 1);
+                shapes.star.push(new THREE.Vector3(Math.cos(sa) * sr, Math.sin(sa) * sr, (Math.random() - 0.5) * 2));
+
+                // RABBIT
+                shapes.rabbit.push(genRabbit(i));
+                // BIRD
+                shapes.bird.push(genBird(i));
+                // CAT
+                shapes.cat.push(genCat(i));
+                // DOG
+                shapes.dog.push(genDog(i));
+            }
+        }
+
+        function genRabbit(i) {
+            const r = Math.random();
+            if (i % 500 === 0) return new THREE.Vector3(0.4, 2.8, 1.8); // Eye R
+            if (i % 501 === 0) return new THREE.Vector3(-0.4, 2.8, 1.8); // Eye L
+            if (r > 0.6) return genEllipsoid(3.5, 4.5, 3.5, 0, -1.5, 0); // Body
+            if (r > 0.3) return genEllipsoid(2, 2.2, 2, 0, 2.5, 1); // Head
+            if (r > 0.05) { // Ears
+                const side = Math.random() > 0.5 ? 1 : -1;
+                return genEllipsoid(0.8, 4.0, 0.4, side * 0.8, 5.2, 0.5);
+            }
+            return new THREE.Vector3((Math.random() - 0.5) * 0.5, -2, -2.5); // Fluffy Tail
+        }
+
+        function genBird(i) {
+            const r = Math.random();
+            if (i % 500 === 0) return new THREE.Vector3(0.2, 1.8, 3.5); // Eye R
+            if (i % 501 === 0) return new THREE.Vector3(-0.2, 1.8, 3.5); // Eye L
+            if (r > 0.6) { // Wings curved elegantly
+                const side = Math.random() > 0.5 ? 1 : -1;
+                const x = (0.5 + Math.random() * 7) * side;
+                const progress = Math.abs(x) / 7;
+                const y = Math.sin(progress * Math.PI) * 4;
+                const z = -Math.pow(progress, 2) * 2;
+                return new THREE.Vector3(x, y, z);
+            }
+            if (r > 0.3) return genEllipsoid(2.5, 1.8, 6, 0, 0, 0); // Torso sleek
+            if (r > 0.1) return genEllipsoid(1, 1, 1.5, 0, 1.5, 3); // Head forward
+            return new THREE.Vector3((Math.random() - 0.5) * 2, -1, -4); // Long Tail feather
+        }
+
+        function genCat(i) {
+            const r = Math.random();
+            if (i % 500 === 0) return new THREE.Vector3(2.8, 2.0, 0.5); // Eye R
+            if (i % 501 === 0) return new THREE.Vector3(2.8, 2.0, -0.5); // Eye L
+            if (r > 0.5) return genEllipsoid(5, 2.8, 2.8, 0, 0, 0); // Body
+            if (r > 0.3) return genEllipsoid(2, 2, 2, 3.5, 1.5, 0); // Head
+            if (r > 0.1) { // Tail curved up S-shape
+                const t = Math.random() * 6;
+                const tx = -3 - t;
+                const ty = Math.sin(t * 0.5) * 2 + 2;
+                return new THREE.Vector3(tx, ty, (Math.random() - 0.5) * 0.4);
+            }
+            if (r > 0.05) { // Sharp Ears
+                const s = Math.random() > 0.5 ? 1 : -1;
+                return new THREE.Vector3(3.5, 3.2 + Math.random() * 0.8, s * 0.8);
+            }
+            return genEllipsoid(0.6, 3, 0.6, (Math.random() > 0.5 ? 2 : -2), -2.5, (Math.random() > 0.5 ? 1 : -1)); // Slim Legs
+        }
+
+        function genDog(i) {
+            const r = Math.random();
+            if (i % 500 === 0) return new THREE.Vector3(4.2, 2.2, 0.4); // Eye R
+            if (i % 501 === 0) return new THREE.Vector3(4.2, 2.2, -0.4); // Eye L
+            if (r > 0.5) return genEllipsoid(7, 4, 3.5, 0, 0, 0); // Husky body
+            if (r > 0.3) return genEllipsoid(2.8, 2.5, 2.5, 4.5, 1.8, 0); // Robust Head
+            if (r > 0.2) return genEllipsoid(1.5, 1.2, 1.8, 5.8, 1.2, 0); // Strong Snout
+            if (r > 0.1) { // Perky Ears
+                const s = Math.random() > 0.5 ? 1 : -1;
+                return genEllipsoid(0.6, 1.8, 0.6, 4.5, 3.5, s * 0.8);
+            }
+            const sX = (Math.random() > 0.5 ? 3 : -3);
+            const sZ = (Math.random() > 0.5 ? 1.2 : -1.2);
+            return genEllipsoid(0.8, 3.5, 0.8, sX, -3, sZ); // Sturdy legs
+        }
+
+        function genEllipsoid(w, h, d, ox, oy, oz) {
+            const phi = Math.random() * Math.PI;
+            const theta = Math.random() * Math.PI * 2;
+            return new THREE.Vector3(
+                Math.sin(phi) * Math.cos(theta) * w / 2 + ox,
+                Math.sin(phi) * Math.sin(theta) * h / 2 + oy,
+                Math.cos(phi) * d / 2 + oz
+            );
+        }
+
+        function createSystem() {
+            const geo = new THREE.BufferGeometry();
+            const posAttr = new Float32Array(CONFIG.count * 3);
+            const colAttr = new Float32Array(CONFIG.count * 3);
+            for (let i = 0; i < CONFIG.count; i++) {
+                const p = new Particle(i);
+                p.setTarget(0, 1);
+                particles.push(p);
+                colAttr[i * 3] = p.currentColor.r; colAttr[i * 3 + 1] = p.currentColor.g; colAttr[i * 3 + 2] = p.currentColor.b;
+            }
+            geo.setAttribute('position', new THREE.BufferAttribute(posAttr, 3));
+            geo.setAttribute('color', new THREE.BufferAttribute(colAttr, 3));
+            const mat = new THREE.PointsMaterial({ size: CONFIG.size, vertexColors: true, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, map: createParticleTexture() });
+            system = new THREE.Points(geo, mat);
+            scene.add(system);
+        }
+
+        function createParticleTexture() {
+            const c = document.createElement('canvas'); c.width = 64; c.height = 64;
+            const ctx = c.getContext('2d');
+            const g = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+            g.addColorStop(0, 'white'); g.addColorStop(0.2, 'rgba(255,255,255,0.8)'); g.addColorStop(1, 'transparent');
+            ctx.fillStyle = g; ctx.fillRect(0, 0, 64, 64);
+            return new THREE.CanvasTexture(c);
+        }
+
+        function morphTo(nameIndex) {
+            currentShapeIdx = nameIndex;
+            nextShapeIdx = (currentShapeIdx + 1) % SHAPE_KEYS.length;
+            morphProgress = 0;
+
+            const name = SHAPE_KEYS[currentShapeIdx];
+            particles.forEach(p => p.setTarget(currentShapeIdx, nextShapeIdx));
+
+            const status = document.getElementById('gesture-status');
+            status.innerText = name === 'chaos' ? 'VOID UNLEASHED' : name.toUpperCase();
+            status.style.opacity = '1';
+            setTimeout(() => { status.style.opacity = '0'; }, 1800);
+        }
+
+        function setupInteractions() {
+            window.addEventListener('dblclick', () => {
+                currentShapeIdx = (currentShapeIdx + 1) % SHAPE_KEYS.length;
+                morphTo(currentShapeIdx);
+            });
+
+            let startX = 0;
+            window.addEventListener('mousedown', (e) => {
+                isScrubbing = true; startX = e.clientX;
+            });
+            window.addEventListener('mouseup', () => {
+                if (morphProgress > 0.7) {
+                    currentShapeIdx = nextShapeIdx;
+                    morphTo(currentShapeIdx);
+                } else {
+                    morphProgress = 0;
+                }
+                document.getElementById('scrub-bar').style.width = '0%';
+                isScrubbing = false;
+            });
+
+            window.addEventListener('mousemove', (e) => {
+                mouse.x = (e.clientX / window.innerWidth - 0.5) * 25;
+                mouse.y = -(e.clientY / window.innerHeight - 0.5) * 20;
+
+                if (isScrubbing) {
+                    const delta = (e.clientX - startX) / window.innerWidth;
+                    morphProgress = Math.min(Math.max(delta * 2, 0), 1);
+                    document.getElementById('scrub-bar').style.width = (morphProgress * 100) + '%';
+                }
+            });
+
+            window.addEventListener('touchstart', (e) => {
+                isScrubbing = true; startX = e.touches[0].clientX;
+            });
+            window.addEventListener('touchend', () => {
+                if (morphProgress > 0.7) {
+                    currentShapeIdx = nextShapeIdx;
+                    morphTo(currentShapeIdx);
+                } else {
+                    morphProgress = 0;
+                }
+                document.getElementById('scrub-bar').style.width = '0%';
+                isScrubbing = false;
+            });
+            window.addEventListener('touchmove', (e) => {
+                const t = e.touches[0];
+                mouse.x = (t.clientX / window.innerWidth - 0.5) * 25;
+                mouse.y = -(t.clientY / window.innerHeight - 0.5) * 20;
+                if (isScrubbing) {
+                    const delta = (t.clientX - startX) / window.innerWidth;
+                    morphProgress = Math.min(Math.max(delta * 2, 0), 1);
+                    document.getElementById('scrub-bar').style.width = (morphProgress * 100) + '%';
+                }
+            });
+        }
+
+        function onHandResults(results) {
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                const landmarks = results.multiHandLandmarks[0];
+                const indexTip = landmarks[8];
+                mouse.x = (0.5 - indexTip.x) * 25;
+                mouse.y = (0.5 - indexTip.y) * 20;
+
+                const fingersUp = [8, 12, 16, 20].filter(idx => landmarks[idx].y < landmarks[idx - 2].y).length;
+                const thumbUp = Math.abs(landmarks[4].x - landmarks[17].x) > Math.abs(landmarks[3].x - landmarks[17].x);
+                const total = fingersUp + (thumbUp ? 1 : 0);
+
+                if (total !== lastDetectedGesture) {
+                    const mapping = { 1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 0: 6 };
+                    if (mapping[total] !== undefined) morphTo(mapping[total]);
+                    lastDetectedGesture = total;
+                }
+            }
+        }
+
+        function startCamera() {
+            const videoElement = document.getElementById('video-input');
+            const hands = new Hands({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}` });
+            hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
+            hands.onResults(onHandResults);
+            new Camera(videoElement, { onFrame: async () => await hands.send({ image: videoElement }), width: 640, height: 480 }).start();
+            document.getElementById('cam-btn').style.display = 'none';
+        }
+
+        function onResize() {
+            camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const posArray = system.geometry.attributes.position.array;
+            const colors = system.geometry.attributes.color.array;
+
+            particles.forEach((p, i) => {
+                p.update();
+                posArray[i * 3] = p.pos.x; posArray[i * 3 + 1] = p.pos.y; posArray[i * 3 + 2] = p.pos.z;
+                colors[i * 3] = p.currentColor.r; colors[i * 3 + 1] = p.currentColor.g; colors[i * 3 + 2] = p.currentColor.b;
+            });
+            system.geometry.attributes.position.needsUpdate = true;
+            system.geometry.attributes.color.needsUpdate = true;
+            system.rotation.y += CONFIG.autoRotate;
+            renderer.render(scene, camera);
+        }
+
+        init();
+    </script>
+</body>
+
+</html>
